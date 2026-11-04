@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube World</title>
+  <style>
+    :root { color-scheme: dark; font: 14px system-ui, sans-serif; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #10152b; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #controls {
+      position: fixed; top: 12px; left: 12px; z-index: 1; padding: 12px;
+      border: 1px solid #ffffff44; border-radius: 8px; background: #10152bcc;
+      backdrop-filter: blur(5px); line-height: 1.7;
+    }
+    #controls label { display: block; }
+    #controls input { margin-left: 6px; }
+    #status { color: #b7c8ff; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label>Resolution: <output id="resolutionValue">20 x 20</output></label>
+    <input id="resolution" type="range" min="4" max="200" value="20" step="1">
+    <label><input id="animate" type="checkbox" checked> Animate camera and flower</label>
+    <div id="status">Loading provided images...</div>
+  </div>
+  <canvas id="glcanvas"></canvas>
+  <script src="app.js"></script>
+</body>
+</html>
