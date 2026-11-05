@@ -15,15 +15,60 @@
     }
     #controls label { display: block; }
     #controls input { margin-left: 6px; }
-    #status { color: #b7c8ff; }
+    #controls h1, #controls p { margin: 0; text-align: center; }
+    #controls h1 { font-size: 1.15rem; }
+    #controls p { color: #c8d2f2; font-size: 0.85rem; }
+    #controlOptions {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid #ffffff44;
+    }
+    #heightMaps { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+    #heightMaps button {
+      padding: 2px 8px; border: 1px solid #ffffff44; border-radius: 10px;
+      color: #c8d2f2; background: #ffffff12; cursor: pointer;
+    }
+    #heightMaps button.selected { color: #10152b; background: #b7c8ff; }
+    .switch {
+      display: flex !important; align-items: center; gap: 8px; margin-top: 4px;
+      cursor: pointer;
+    }
+    .switch input { display: none; }
+    .track {
+      position: relative; width: 30px; height: 16px; border-radius: 10px;
+      background: #ffffff44; transition: background 0.2s;
+    }
+    .track::after {
+      content: ""; position: absolute; top: 3px; left: 3px; width: 10px; height: 10px;
+      border-radius: 50%; background: #ffffff; transition: transform 0.2s;
+    }
+    .switch input:checked + .track { background: #7f9cff; }
+    .switch input:checked + .track::after { transform: translateX(14px); }
+    #resolutionControl { margin-top: 8px; text-align: center; }
+    #resolutionControl label { margin-bottom: 2px; text-align: left; }
+    #resolution { display: block; width: 100%; margin: 0; }
+    #resolutionValue { display: block; }
   </style>
 </head>
 <body>
   <div id="controls">
-    <label>Resolution: <output id="resolutionValue">20 x 20</output></label>
-    <input id="resolution" type="range" min="4" max="200" value="20" step="1">
-    <label><input id="animate" type="checkbox" checked> Animate camera and flower</label>
-    <div id="status">Loading provided images...</div>
+    <h1>Takashi Murakami Cube World</h1>
+    <p>Created by Daniel Brill</p>
+    <div id="controlOptions">
+      <div id="heightMaps">
+        <span>Height map:</span>
+        <button id="heightMap1" type="button" class="selected" aria-pressed="true">Map 1</button>
+        <button id="heightMap2" type="button" aria-pressed="false">Map 2</button>
+      </div>
+      <label class="switch">
+        <span>Animations:</span>
+        <input id="animate" type="checkbox" checked>
+        <span class="track"></span>
+      </label>
+      <div id="resolutionControl">
+        <label for="resolution">Resolution:</label>
+        <input id="resolution" type="range" min="16" max="200" value="16" step="2">
+        <output id="resolutionValue">16 x 16</output>
+      </div>
+    </div>
   </div>
   <canvas id="glcanvas"></canvas>
   <script src="app.js"></script>
