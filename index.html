@@ -18,6 +18,12 @@
     #controls h1, #controls p { margin: 0; text-align: center; }
     #controls h1 { font-size: 1.15rem; }
     #controls p { color: #c8d2f2; font-size: 0.85rem; }
+    #githubLink {
+      display: block; width: fit-content; margin: 4px auto 0; padding: 2px 8px;
+      border: 1px solid #ffffff44; border-radius: 10px; color: #c8d2f2;
+      background: #ffffff12; font-size: 0.8rem; text-decoration: none;
+    }
+    #githubLink:hover { background: #ffffff24; }
     #controlOptions {
       margin-top: 8px; padding-top: 8px; border-top: 1px solid #ffffff44;
     }
@@ -52,6 +58,8 @@
   <div id="controls">
     <h1>Takashi Murakami Cube World</h1>
     <p>Created by Daniel Brill</p>
+    <a id="githubLink" href="https://github.com/DanielBrill20/cs5160-cube-world"
+      target="_blank" rel="noopener noreferrer">View on GitHub</a>
     <div id="controlOptions">
       <div id="heightMaps">
         <span>Height map:</span>
