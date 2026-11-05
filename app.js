@@ -100,10 +100,10 @@ function lookAt(eye, target) {
 }
 
 const state = {
-  resolution: 20, color: null, height: null, cubes: [], started: performance.now(),
-  animate: true, cameraAngle: 0
+  resolution: 16, color: null, height: null, heightMaps: {}, selectedHeightMap: 1,
+  cubes: [], started: performance.now(),
+  animate: true, cameraAngle: 0, animationTime: 0, lastFrameTime: null
 };
-const status = document.getElementById("status");
 function loadImageAsset(path, target) {
   const image = new Image();
   image.onload = () => {
@@ -111,14 +111,19 @@ function loadImageAsset(path, target) {
     offscreen.width = offscreen.height = size;
     const context = offscreen.getContext("2d");
     context.drawImage(image, 0, 0, size, size);
-    state[target] = context.getImageData(0, 0, size, size);
+    if (target === "heightMaps") {
+      state.heightMaps[path] = context.getImageData(0, 0, size, size);
+      state.height = state.heightMaps[
+        state.selectedHeightMap === 1 ? "assets/grayscale_source1.jpg" : "assets/grayscale_source2.png"
+      ];
+    } else {
+      state[target] = context.getImageData(0, 0, size, size);
+    }
     if (state.color && state.height) {
-      status.textContent = "Provided images loaded; sampled " + state.resolution + " x " + state.resolution + " cells";
       rebuild();
     }
   };
   image.onerror = () => {
-    status.textContent = "Unable to load " + path + ". Run the project from its web server.";
     console.error("Unable to load image asset:", path);
   };
   image.src = path;
@@ -204,7 +209,13 @@ function resize() {
 }
 function draw(time) {
   resize();
-  if (state.animate) state.cameraAngle = time * 0.00012;
+  if (state.lastFrameTime === null) state.lastFrameTime = time;
+  const elapsed = time - state.lastFrameTime;
+  state.lastFrameTime = time;
+  if (state.animate) {
+    state.animationTime += elapsed;
+    state.cameraAngle += elapsed * 0.00012;
+  }
   const radius = Math.max(15, state.resolution * 0.63);
   const eye = [Math.cos(state.cameraAngle) * radius, radius * 0.72, Math.sin(state.cameraAngle) * radius];
   const lookAtHeight = 5 * (state.resolution / 20);
@@ -214,7 +225,7 @@ function draw(time) {
   gl.uniformMatrix4fv(uProjection, false, perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 600));
   gl.uniformMatrix4fv(uView, false, lookAt(eye, [0, lookAtHeight-5, 0]));
   for (const cube of state.cubes) drawCube(model(cube.x, 0, cube.z, 0.88, cube.height, 0.88), cube.color);
-  drawFlower(state.animate ? time : state.started);
+  drawFlower(state.started + state.animationTime);
   requestAnimationFrame(draw);
 }
 
@@ -222,10 +233,23 @@ document.getElementById("resolution").addEventListener("input", (event) => {
   state.resolution = Number(event.target.value);
   document.getElementById("resolutionValue").textContent =
     state.resolution + " x " + state.resolution;
-  status.textContent = "Sampled " + state.resolution + " x " + state.resolution + " cells";
   rebuild();
 });
 document.getElementById("animate").addEventListener("change", (event) => { state.animate = event.target.checked; });
+function selectHeightMap(mapNumber) {
+  const path = mapNumber === 1 ? "assets/grayscale_source1.jpg" : "assets/grayscale_source2.png";
+  if (!state.heightMaps[path]) return;
+  state.selectedHeightMap = mapNumber;
+  state.height = state.heightMaps[path];
+  document.getElementById("heightMap1").classList.toggle("selected", mapNumber === 1);
+  document.getElementById("heightMap1").setAttribute("aria-pressed", String(mapNumber === 1));
+  document.getElementById("heightMap2").classList.toggle("selected", mapNumber === 2);
+  document.getElementById("heightMap2").setAttribute("aria-pressed", String(mapNumber === 2));
+  rebuild();
+}
+document.getElementById("heightMap1").addEventListener("click", () => selectHeightMap(1));
+document.getElementById("heightMap2").addEventListener("click", () => selectHeightMap(2));
 loadImageAsset("assets/murakami_source.webp", "color");
-loadImageAsset("assets/grayscale_source.jpg", "height");
+loadImageAsset("assets/grayscale_source1.jpg", "heightMaps");
+loadImageAsset("assets/grayscale_source2.png", "heightMaps");
 requestAnimationFrame(draw);
