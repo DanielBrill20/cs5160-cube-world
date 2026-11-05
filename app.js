@@ -5,21 +5,24 @@ if (!gl) throw new Error("WebGL is not available in this browser.");
 const vertexSource = `
   attribute vec3 aPosition;
   attribute vec3 aNormal;
+  attribute vec3 aColor;
   uniform mat4 uModel, uView, uProjection;
   varying vec3 vNormal;
+  varying vec3 vColor;
   void main() {
     vNormal = normalize(mat3(uModel) * aNormal);
+    vColor = aColor;
     gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
   }
 `;
 const fragmentSource = `
   precision mediump float;
-  uniform vec3 uColor;
   varying vec3 vNormal;
+  varying vec3 vColor;
   void main() {
     vec3 lightDirection = normalize(vec3(0.5, 1.0, 0.35));
     float brightness = 0.28 + 0.72 * max(dot(normalize(vNormal), lightDirection), 0.0);
-    gl_FragColor = vec4(uColor * brightness, 1.0);
+    gl_FragColor = vec4(vColor * brightness, 1.0);
   }
 `;
 
@@ -64,10 +67,16 @@ gl.enableVertexAttribArray(aPosition);
 gl.enableVertexAttribArray(aNormal);
 gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 24, 0);
 gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 24, 12);
+const aColor = gl.getAttribLocation(program, "aColor");
+const colorBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, 36 * 3 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(aColor);
+gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
 const uModel = gl.getUniformLocation(program, "uModel");
 const uView = gl.getUniformLocation(program, "uView");
 const uProjection = gl.getUniformLocation(program, "uProjection");
-const uColor = gl.getUniformLocation(program, "uColor");
+const vertexColors = new Float32Array(36 * 3);
 
 function model(x, y, z, sx, sy, sz, rotation = 0) {
   const c = Math.cos(rotation), s = Math.sin(rotation);
@@ -114,11 +123,23 @@ function loadImageAsset(path, target) {
   };
   image.src = path;
 }
-function sample(image, u, v) {
-  const x = Math.min(image.width - 1, Math.floor(u * image.width));
-  const y = Math.min(image.height - 1, Math.floor(v * image.height));
-  const i = (y * image.width + x) * 4;
-  return [image.data[i] / 255, image.data[i+1] / 255, image.data[i+2] / 255];
+function sampleRegion(image, col, row, resolution) {
+  const startX = Math.floor(col * image.width / resolution);
+  const endX = Math.max(startX + 1, Math.ceil((col + 1) * image.width / resolution));
+  const startY = Math.floor(row * image.height / resolution);
+  const endY = Math.max(startY + 1, Math.ceil((row + 1) * image.height / resolution));
+  const sum = [0, 0, 0];
+  let count = 0;
+  for (let y = startY; y < Math.min(endY, image.height); y++) {
+    for (let x = startX; x < Math.min(endX, image.width); x++) {
+      const i = (y * image.width + x) * 4;
+      sum[0] += image.data[i];
+      sum[1] += image.data[i + 1];
+      sum[2] += image.data[i + 2];
+      count++;
+    }
+  }
+  return [sum[0] / (255 * count), sum[1] / (255 * count), sum[2] / (255 * count)];
 }
 function rebuild() {
   if (!state.color || !state.height) return;
@@ -126,8 +147,8 @@ function rebuild() {
   const heightScale = n / 20;
   state.cubes = [];
   for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
-    const u = (col + 0.5) / n, v = (row + 0.5) / n, rgb = sample(color, u, v);
-    const gray = sample(height, u, v);
+    const rgb = sampleRegion(color, col, row, n);
+    const gray = sampleRegion(height, col, row, n);
     state.cubes.push({
       x: (col - (n - 1) / 2) * 0.9, z: (row - (n - 1) / 2) * 0.9,
       height: (0.35 + (gray[0] * 0.3 + gray[1] * 0.59 + gray[2] * 0.11) * 4.2) * heightScale,
@@ -144,12 +165,20 @@ function bezier(p0, p1, p2, p3, t) {
   ];
 }
 function drawCube(matrix, color) {
+  for (let vertex = 0; vertex < 36; vertex++) {
+    const variation = 0.92 + (vertex % 3) * 0.04;
+    vertexColors[vertex * 3] = Math.min(1, color[0] * variation);
+    vertexColors[vertex * 3 + 1] = Math.min(1, color[1] * variation);
+    vertexColors[vertex * 3 + 2] = Math.min(1, color[2] * variation);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertexColors);
   gl.uniformMatrix4fv(uModel, false, matrix);
-  gl.uniform3fv(uColor, color);
   gl.drawArrays(gl.TRIANGLES, 0, 36);
 }
 function drawFlower(time) {
-  const t = (time * 0.00008) % 1;
+  const cycle = ((time - state.started) * 0.00008) % 2;
+  const t = cycle <= 1 ? cycle : 2 - cycle;
   const heightScale = state.resolution / 20;
   const p = bezier(
     [-7, 7 * heightScale, -3],
