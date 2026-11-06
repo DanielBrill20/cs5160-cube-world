@@ -104,6 +104,16 @@ const state = {
   cubes: [], started: performance.now(),
   animate: true, cameraAngle: 0, animationTime: 0, lastFrameTime: null
 };
+const worldSize = 14.4;
+const flowers = [
+  { path: [[-5.5, 5.6, -5.4], [-2.0, 6.4, -5.2], [2.0, 6.1, -5.6], [5.5, 5.8, -5.4]], phase: 0.00, center: [0.45, 0.02, 0.02], petals: [1.0, 0.05, 0.05] },
+  { path: [[-5.5, 5.8, -3.6], [-2.0, 6.6, -3.4], [2.0, 5.9, -3.8], [5.5, 6.0, -3.6]], phase: 0.22, center: [0.5, 0.2, 0.01], petals: [1.0, 0.5, 0.02] },
+  { path: [[-5.5, 5.5, -1.8], [-2.0, 6.3, -1.6], [2.0, 6.2, -2.0], [5.5, 5.7, -1.8]], phase: 0.44, center: [0.5, 0.45, 0.01], petals: [1.0, 0.9, 0.02] },
+  { path: [[-5.5, 5.9, 0.0], [-2.0, 6.7, 0.2], [2.0, 6.0, -0.2], [5.5, 5.8, 0.0]], phase: 0.66, center: [0.02, 0.45, 0.04], petals: [0.15, 0.9, 0.15] },
+  { path: [[-5.5, 5.6, 1.8], [-2.0, 6.4, 2.0], [2.0, 6.1, 1.6], [5.5, 5.9, 1.8]], phase: 0.88, center: [0.01, 0.2, 0.5], petals: [0.05, 0.45, 1.0] },
+  { path: [[-5.5, 5.8, 3.6], [-2.0, 6.5, 3.4], [2.0, 6.0, 3.8], [5.5, 5.7, 3.6]], phase: 1.10, center: [0.1, 0.02, 0.5], petals: [0.35, 0.1, 1.0] },
+  { path: [[-5.5, 5.7, 5.4], [-2.0, 6.3, 5.6], [2.0, 6.2, 5.2], [5.5, 5.9, 5.4]], phase: 1.32, center: [0.35, 0.02, 0.45], petals: [0.8, 0.1, 0.9] }
+];
 function loadImageAsset(path, target) {
   const image = new Image();
   image.onload = () => {
@@ -149,14 +159,15 @@ function sampleRegion(image, col, row, resolution) {
 function rebuild() {
   if (!state.color || !state.height) return;
   const n = state.resolution, color = state.color, height = state.height;
-  const heightScale = n / 20;
+  const cubeSize = worldSize / n;
   state.cubes = [];
   for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) {
     const rgb = sampleRegion(color, col, row, n);
     const gray = sampleRegion(height, col, row, n);
     state.cubes.push({
-      x: (col - (n - 1) / 2) * 0.9, z: (row - (n - 1) / 2) * 0.9,
-      height: (0.35 + (gray[0] * 0.3 + gray[1] * 0.59 + gray[2] * 0.11) * 4.2) * heightScale,
+      x: (col - (n - 1) / 2) * cubeSize, z: (row - (n - 1) / 2) * cubeSize,
+      width: cubeSize * 0.98, depth: cubeSize * 0.98,
+      height: 0.35 + (gray[0] * 0.3 + gray[1] * 0.59 + gray[2] * 0.11) * 4.2,
       color: rgb
     });
   }
@@ -181,25 +192,18 @@ function drawCube(matrix, color) {
   gl.uniformMatrix4fv(uModel, false, matrix);
   gl.drawArrays(gl.TRIANGLES, 0, 36);
 }
-function drawFlower(time) {
-  const cycle = ((time - state.started) * 0.00008) % 2;
+function drawFlower(flower, time) {
+  const cycle = ((time - state.started) * 0.00008 + flower.phase) % 2;
   const t = cycle <= 1 ? cycle : 2 - cycle;
-  const heightScale = state.resolution / 20;
-  const p = bezier(
-    [-7, 7 * heightScale, -3],
-    [-3, 10 * heightScale, 4],
-    [4, 8 * heightScale, 5],
-    [7, 6 * heightScale, -4],
-    t
-  );
+  const p = bezier(flower.path[0], flower.path[1], flower.path[2], flower.path[3], t);
   const spin = time * 0.0015;
-  drawCube(model(p[0], p[1], p[2], 0.9, 0.55, 0.9, spin), [1, 0.78, 0.12]);
+  drawCube(model(p[0], p[1], p[2], 0.45, 0.275, 0.45, spin), flower.center);
   for (let i = 0; i < 6; i++) {
     const a = i * Math.PI / 3 + spin;
-    drawCube(model(p[0] + Math.cos(a) * 0.85, p[1], p[2] + Math.sin(a) * 0.85,
-      0.65, 0.22, 1.05, a), [1, 0.22 + i * 0.06, 0.55]);
+    drawCube(model(p[0] + Math.cos(a) * 0.425, p[1], p[2] + Math.sin(a) * 0.425,
+      0.325, 0.11, 0.525, a), flower.petals);
   }
-  drawCube(model(p[0], p[1] - 1.0, p[2], 0.16, 1.8, 0.16), [0.2, 0.8, 0.3]);
+  drawCube(model(p[0], p[1] - 0.5, p[2], 0.08, 0.9, 0.08), [0.2, 0.8, 0.3]);
 }
 function resize() {
   const scale = window.devicePixelRatio || 1;
@@ -216,16 +220,18 @@ function draw(time) {
     state.animationTime += elapsed;
     state.cameraAngle += elapsed * 0.00012;
   }
-  const radius = Math.max(15, state.resolution * 0.63);
-  const eye = [Math.cos(state.cameraAngle) * radius, radius * 0.72, Math.sin(state.cameraAngle) * radius];
-  const lookAtHeight = 5 * (state.resolution / 20);
+  const radius = 12;
+  const eye = [Math.cos(state.cameraAngle) * radius, 11, Math.sin(state.cameraAngle) * radius];
+  const lookAtHeight = -1;
   gl.clearColor(0.04, 0.06, 0.15, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
   gl.uniformMatrix4fv(uProjection, false, perspective(Math.PI / 4, canvas.width / canvas.height, 0.1, 600));
-  gl.uniformMatrix4fv(uView, false, lookAt(eye, [0, lookAtHeight-5, 0]));
-  for (const cube of state.cubes) drawCube(model(cube.x, 0, cube.z, 0.88, cube.height, 0.88), cube.color);
-  drawFlower(state.started + state.animationTime);
+  gl.uniformMatrix4fv(uView, false, lookAt(eye, [0, lookAtHeight, 0]));
+  for (const cube of state.cubes) {
+    drawCube(model(cube.x, 0, cube.z, cube.width, cube.height, cube.depth), cube.color);
+  }
+  for (const flower of flowers) drawFlower(flower, state.started + state.animationTime);
   requestAnimationFrame(draw);
 }
 
